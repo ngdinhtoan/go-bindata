@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -18,11 +19,11 @@ import (
 // Translate reads assets from an input directory, converts them
 // to Go code and writes new files to the output specified
 // in the given configuration.
-func Translate(c *Config) error {
+func Translate(c *Config) (err error) {
 	var toc []Asset
 
 	// Ensure our configuration has sane values.
-	err := c.validate()
+	err = c.validate()
 	if err != nil {
 		return err
 	}
@@ -42,6 +43,22 @@ func Translate(c *Config) error {
 	if err != nil {
 		return err
 	}
+
+	defer func() {
+		if err != nil {
+			return
+		}
+
+		if _, lpErr := exec.LookPath("gofmt"); lpErr != nil {
+			// could not find gofmt command
+			// do nothing
+			return
+		}
+
+		// run gofmt on output file after closing file
+		gofmt := exec.Command("gofmt", "-w", "-s", c.Output)
+		err = gofmt.Run()
+	}()
 
 	defer fd.Close()
 
